@@ -19,7 +19,8 @@ def fowardKinematics(L1=1,L2=1,L3=1,A1=0,A2=0,A3=0):
 A1 = 45
 A2 = 25
 A3 = 10
-moved=False
+moved2=False
+moved3=False
 text = ""
 
 # # plot all possibility
@@ -64,7 +65,7 @@ app.layout = html.Div([
             dbc.Row(dbc.Col(
                 daq.Joystick(
                     id='joystick1',
-                    label="Sigle axis move",
+                    label="2nd point move",
                     angle=0
                 ),
                 width='auto',
@@ -73,7 +74,7 @@ app.layout = html.Div([
             dbc.Row(dbc.Col(
                 daq.Joystick(
                     id='joystick2',
-                    label="Double axis move",
+                    label="3rd point move",
                     angle=0,
                     # style={'border':'3px solid red'},
                 ),
@@ -162,10 +163,10 @@ app.layout = html.Div([
                 daq.Slider(
                     id='A2',
                     handleLabel={"showCurrentValue": True,"label":"A2"},
-                    marks={"0":"0","90":"90","180":"180"},
+                    marks={"-270":"-270","0":"0","270":"270"},
                     vertical=True,
-                    min=0,
-                    max=180,
+                    min=-270,
+                    max=270,
                     size=195,
                     value=25,
                     step=0.1,
@@ -194,7 +195,7 @@ app.layout = html.Div([
     ]),
 ],style={'paddingLeft':0,'paddingRight':0,'paddingTop':15,'paddingBottom':15},)
 
-# graph angles and L update
+# graph angles and length update
 @app.callback(
     Output('graph', 'figure'),
     Input('L1', 'value'),
@@ -215,7 +216,7 @@ def updateGraph(L1,L2,L3,A11,A22,A33,figure):
     figure['data'][0]['y']=y
     figure['layout']['yaxis']={'range':[-(L1+L2+L3)*1.05,(L1+L2+L3)*1.05]}
     figure['layout']['xaxis']={'range':[-(L1+L2+L3)*1.05,(L1+L2+L3)*1.05]}
-    figure['layout']['title']='| x:{} y:{} | {}'.format(round(x[2],2),round(y[2],2),text)
+    figure['layout']['title']='| x:{} y:{} | {}'.format(round(x[3],2),round(y[3],2),text)
     text = ""
     return figure
 
@@ -223,6 +224,7 @@ def updateGraph(L1,L2,L3,A11,A22,A33,figure):
 @app.callback(
     Output('A1', 'value'),
     Output('A2', 'value'),
+    Output('A3', 'value'),
 
     # State('timerJ','n_intervals'),
     # Input('joystick1', 'angle'),
@@ -246,70 +248,88 @@ def updateGraph(L1,L2,L3,A11,A22,A33,figure):
 )
 def updateAngle(interval,angle,force,angle2,force2,forceLimit,L1,L2,L3,A11,A22,A33):
 
-    global A1,A2,A3,moved
-    xPrevious, yPrevious = fowardKinematics(L1,L2,L3,A1,A2,A3)
+    global A1,A2,A3,moved2,moved3,text
+    # xPrevious, yPrevious = fowardKinematics(L1,L2,L3,A1,A2,A3)
     x, y = fowardKinematics(L1,L2,L3,A1,A2,A3)
+    A1Previous,A2Previous,A3Previous = A1,A2,A3
 
     # Sigle axis move Joystick
     if angle!=None and force!=0 and force!=None:
-        moved = True
+        moved2 = True
         if force > 1 and forceLimit:
             force = 1
-        if 315 <= angle or angle < 45:
-            x[2] += force*(L1+L2+L3)*0.01
-        if 45 <= angle and angle < 135:
-            y[2] += force*(L1+L2+L3)*0.01
-        if 135 <= angle and angle < 225:
-            x[2] -=  force*(L1+L2+L3)*0.01
-        if 225 <= angle and angle < 315:
-            y[2] -=  force*(L1+L2+L3)*0.01
+        if 0 <= angle and angle < 90:
+            x[2] += (force*(L1+L2+L3)*0.01)*(1-angle/90)
+            y[2] += (force*(L1+L2+L3)*0.01)*(angle/90)
+        if 90 <= angle and angle < 180:
+            x[2] -= (force*(L1+L2+L3)*0.01)*((angle-90)/90)
+            y[2] += (force*(L1+L2+L3)*0.01)*(1-(angle-90)/90)
+        if 180 <= angle and angle < 270:
+            x[2] -= (force*(L1+L2+L3)*0.01)*(1-(angle-180)/90)
+            y[2] -= (force*(L1+L2+L3)*0.01)*((angle-180)/90)
+        if 270 <= angle and angle <= 360:
+            x[2] += (force*(L1+L2+L3)*0.01)*((angle-270)/90)
+            y[2] -= (force*(L1+L2+L3)*0.01)*(1-(angle-270)/90)
     
     # Double axis move Joystick
     if angle2!=None and force2!=0 and force2!=None:
-        moved = True
+        moved3 = True
         if force2 > 1 and forceLimit:
             force2 = 1
         if 0 <= angle2 and angle2 < 90:
-            x[2] += (force2*(L1+L2+L3)*0.01)*(1-angle2/90)
-            y[2] += (force2*(L1+L2+L3)*0.01)*(angle2/90)
+            x[3] += (force2*(L1+L2+L3)*0.01)*(1-angle2/90)
+            y[3] += (force2*(L1+L2+L3)*0.01)*(angle2/90)
         if 90 <= angle2 and angle2 < 180:
-            x[2] -= (force2*(L1+L2+L3)*0.01)*((angle2-90)/90)
-            y[2] += (force2*(L1+L2+L3)*0.01)*(1-(angle2-90)/90)
+            x[3] -= (force2*(L1+L2+L3)*0.01)*((angle2-90)/90)
+            y[3] += (force2*(L1+L2+L3)*0.01)*(1-(angle2-90)/90)
         if 180 <= angle2 and angle2 < 270:
-            x[2] -= (force2*(L1+L2+L3)*0.01)*(1-(angle2-180)/90)
-            y[2] -= (force2*(L1+L2+L3)*0.01)*((angle2-180)/90)
+            x[3] -= (force2*(L1+L2+L3)*0.01)*(1-(angle2-180)/90)
+            y[3] -= (force2*(L1+L2+L3)*0.01)*((angle2-180)/90)
         if 270 <= angle2 and angle2 <= 360:
-            x[2] += (force2*(L1+L2+L3)*0.01)*((angle2-270)/90)
-            y[2] -= (force2*(L1+L2+L3)*0.01)*(1-(angle2-270)/90)
+            x[3] += (force2*(L1+L2+L3)*0.01)*((angle2-270)/90)
+            y[3] -= (force2*(L1+L2+L3)*0.01)*(1-(angle2-270)/90)
 
-    if moved:
-        if math.sqrt(x[2]**2+y[2]**2) > L1+L2 or math.sqrt(x[2]**2+y[2]**2) < abs(L1-L2):
-            x[2] = xPrevious[2]
-            y[2] = yPrevious[2]
-            global text
-            text = "reach limit L={}".format(round(math.sqrt(x[2]**2+y[2]**2),2))
-        
-        # if math.sqrt(x[3]**2+y[3]**2) > L1+L2+L3:
-        #     x[3] = xPrevious[3]
-        #     y[3] = yPrevious[3]
+    if moved3:
+        Len2_3 = math.sqrt((x[3]-x[1])**2+(y[3]-y[1])**2)
+        # x[3] and y[3] check
+        if Len2_3 > L2+L3 or Len2_3 < abs(L2-L3):
+            # x[3] = xPrevious[3]
+            # y[3] = yPrevious[3]
+            text = "Len3={}".format(round(Len2_3,2))
+        else:
+            if Len2_3==0:
+                Len2_3=0.0001
+            if (x[3]-x[1])==0:
+                x[3]+=0.0001
+            A2 = -A1+(math.atan((y[3]-y[1])/(x[3]-x[1]))-math.acos((L2**2+Len2_3**2-L3**2)/(2*L2*Len2_3)))/math.pi*180
+            if (x[3]-x[1]) < 0:
+                A2 += 180
+                if (y[3]-y[1]) < 0:
+                    A2 -= 360
+            A2 = round(A2,2)
+            A3 = round((math.pi-math.acos((L2**2+L3**2-Len2_3**2)/(2*L2*L3)))/math.pi*180,2)
+        moved3 = False
 
-        if x[2]==0:
-            x[2]=0.0001
+    if moved2:
+        Len2 = math.sqrt(x[2]**2+y[2]**2)
+        if Len2 > L1+L2 or Len2 < abs(L1-L2):
+            # x[2] = xPrevious[2]
+            # y[2] = yPrevious[2]
+            text = "Len2={}".format(round(Len2,2))
+        else:
+            if Len2==0:
+                Len2=0.0001
+            if x[2]==0:
+                x[2]=0.0001
+            A1 = (math.atan(y[2]/x[2])-math.acos((L1**2+Len2**2-L2**2)/(2*L1*Len2)))/math.pi*180
+            if x[2] < 0:
+                A1 += 180
+            A1 = round(A1,2)
+            A2 = round((math.pi-math.acos((L1**2+L2**2-Len2**2)/(2*L1*L2)))/math.pi*180,2)
+            A3 = round(A1Previous-A1+A2Previous-A2+A3Previous,2)
+        moved2 = False
 
-        # if x[3]==0:
-        #     x[3]=0.0001
-        
-        L = math.sqrt(x[2]**2+y[2]**2)
-        if L==0:
-            L=0.0001
-
-        A1 = (math.atan(y[2]/x[2])-math.acos((L1**2+L**2-L2**2)/(2*L1*L)))/math.pi*180
-        if x[2] < 0:
-            A1 += 180
-        A2 = (math.pi-math.acos((L1**2+L2**2-L**2)/(2*L1*L2)))/math.pi*180
-        moved = False
-
-    return round(A1,2),round(A2,2)
+    return A1,A2,A3
 
 
 

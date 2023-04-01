@@ -4,7 +4,7 @@ from dash import Dash, html, dcc, Input, Output, State
 import dash_daq as daq
 import dash_bootstrap_components as dbc
 
-def calculateXY(L1,L2,L3,A1,A2,A3):
+def fowardKinematics(L1=1,L2=1,L3=1,A1=0,A2=0,A3=0):
     p0 = [0,0]
     p1 = [p0[0]+L1*math.cos(A1*math.pi/180),p0[1]+L1*math.sin(A1*math.pi/180)]
     p2 = [p1[0]+L2*math.cos((A1+A2)*math.pi/180),p1[1]+L2*math.sin((A1+A2)*math.pi/180)]
@@ -22,8 +22,20 @@ A3 = 10
 moved=False
 text = ""
 
-app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
+# # plot all possibility
+# import matplotlib.pyplot as plt
+# xp, yp = [],[]
+# for A1 in range(-90,180,5):
+#     for A2 in range(0,181,5):
+#         x, y = fowardKinematics(1,1,1,A1,A2)
+#         xp.append(x[2])
+#         yp.append(y[2])
 
+# plt.plot(xp,yp,'ro')
+# plt.show()
+
+
+app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP],title='FK/IK dev',update_title=None)
 
 fig = go.Figure(
     data=go.Scatter(x=[], y=[], line=dict(color="crimson")),
@@ -47,7 +59,7 @@ app.layout = html.Div([
                     color="orange",
                 ),
                 width='auto',
-                style={'paddingLeft':160,'paddingRight':10,'paddingTop':0,'paddingBottom':10},
+                style={'paddingLeft':165,'paddingRight':10,'paddingTop':0,'paddingBottom':10},
             )),
             dbc.Row(dbc.Col(
                 daq.Joystick(
@@ -134,10 +146,10 @@ app.layout = html.Div([
                 daq.Slider(
                     id='A1',
                     handleLabel={"showCurrentValue": True,"label":"A1"},
-                    marks={"-360":"-360","0":"0","360":"360"},
+                    marks={"-270":"-270","0":"0","270":"270"},
                     vertical=True,
-                    min=-360,
-                    max=360,
+                    min=-270,
+                    max=270,
                     size=195,
                     value=45,
                     step=0.1,
@@ -182,7 +194,7 @@ app.layout = html.Div([
     ]),
 ],style={'paddingLeft':0,'paddingRight':0,'paddingTop':15,'paddingBottom':15},)
 
-# graph angles and L update
+# graph angles and length update
 @app.callback(
     Output('graph', 'figure'),
     Input('L1', 'value'),
@@ -198,12 +210,12 @@ def updateGraph(L1,L2,L3,A11,A22,A33,figure):
     A1=A11
     A2=A22
     A3=A33
-    x, y = calculateXY(L1,L2,L3,A1,A2,A3)
+    x, y = fowardKinematics(L1,L2,L3,A1,A2,A3)
     figure['data'][0]['x']=x
     figure['data'][0]['y']=y
     figure['layout']['yaxis']={'range':[-(L1+L2+L3)*1.05,(L1+L2+L3)*1.05]}
     figure['layout']['xaxis']={'range':[-(L1+L2+L3)*1.05,(L1+L2+L3)*1.05]}
-    figure['layout']['title']='| x:{} y:{} | {}'.format(round(x[2],2),round(y[2],2),text)
+    figure['layout']['title']='| x:{} y:{} | {}'.format(round(x[3],2),round(y[3],2),text)
     text = ""
     return figure
 
@@ -211,6 +223,7 @@ def updateGraph(L1,L2,L3,A11,A22,A33,figure):
 @app.callback(
     Output('A1', 'value'),
     Output('A2', 'value'),
+    Output('A3', 'value'),
 
     # State('timerJ','n_intervals'),
     # Input('joystick1', 'angle'),
@@ -234,72 +247,83 @@ def updateGraph(L1,L2,L3,A11,A22,A33,figure):
 )
 def updateAngle(interval,angle,force,angle2,force2,forceLimit,L1,L2,L3,A11,A22,A33):
 
-    global A1,A2,A3,moved
-    xPrevious, yPrevious = calculateXY(L1,L2,L3,A1,A2,A3)
-    x, y = calculateXY(L1,L2,L3,A1,A2,A3)
+    global A1,A2,A3,moved,text
+    xPrevious, yPrevious = fowardKinematics(L1,L2,L3,A1,A2,A3)
+    x, y = fowardKinematics(L1,L2,L3,A1,A2,A3)
+    A1Previous,A2Previous,A3Previous = A1,A2,A3
 
     # Sigle axis move Joystick
-    if angle!=None and angle!=0 and force!=None:
+    if angle!=None and force!=0 and force!=None:
         moved = True
         if force > 1 and forceLimit:
             force = 1
         if 315 <= angle or angle < 45:
-            x[2] += force*(L1+L2+L3)*0.01
+            x[3] += force*(L1+L2+L3)*0.01
         if 45 <= angle and angle < 135:
-            y[2] += force*(L1+L2+L3)*0.01
+            y[3] += force*(L1+L2+L3)*0.01
         if 135 <= angle and angle < 225:
-            x[2] -=  force*(L1+L2+L3)*0.01
+            x[3] -=  force*(L1+L2+L3)*0.01
         if 225 <= angle and angle < 315:
-            y[2] -=  force*(L1+L2+L3)*0.01
+            y[3] -=  force*(L1+L2+L3)*0.01
     
     # Double axis move Joystick
-    if angle2!=None and angle2!=0 and force2!=None:
+    if angle2!=None and force2!=0 and force2!=None:
         moved = True
         if force2 > 1 and forceLimit:
             force2 = 1
         if 0 <= angle2 and angle2 < 90:
-            # x[2] += (force2 + int(forceLimit)*force2*(L1+L2+L3)*0.003)*(1-angle2/90)
-            # y[2] += (force2 + int(forceLimit)*force2*(L1+L2+L3)*0.003)*(angle2/90)
-            x[2] += (force2*(L1+L2+L3)*0.01)*(1-angle2/90)
-            y[2] += (force2*(L1+L2+L3)*0.01)*(angle2/90)
+            x[3] += (force2*(L1+L2+L3)*0.01)*(1-angle2/90)
+            y[3] += (force2*(L1+L2+L3)*0.01)*(angle2/90)
         if 90 <= angle2 and angle2 < 180:
-            x[2] -= (force2*(L1+L2+L3)*0.01)*((angle2-90)/90)
-            y[2] += (force2*(L1+L2+L3)*0.01)*(1-(angle2-90)/90)
+            x[3] -= (force2*(L1+L2+L3)*0.01)*((angle2-90)/90)
+            y[3] += (force2*(L1+L2+L3)*0.01)*(1-(angle2-90)/90)
         if 180 <= angle2 and angle2 < 270:
-            x[2] -= (force2*(L1+L2+L3)*0.01)*(1-(angle2-180)/90)
-            y[2] -= (force2*(L1+L2+L3)*0.01)*((angle2-180)/90)
+            x[3] -= (force2*(L1+L2+L3)*0.01)*(1-(angle2-180)/90)
+            y[3] -= (force2*(L1+L2+L3)*0.01)*((angle2-180)/90)
         if 270 <= angle2 and angle2 <= 360:
-            x[2] += (force2*(L1+L2+L3)*0.01)*((angle2-270)/90)
-            y[2] -= (force2*(L1+L2+L3)*0.01)*(1-(angle2-270)/90)
+            x[3] += (force2*(L1+L2+L3)*0.01)*((angle2-270)/90)
+            y[3] -= (force2*(L1+L2+L3)*0.01)*(1-(angle2-270)/90)
 
     if moved:
-        if math.sqrt(x[2]**2+y[2]**2) > L1+L2 or math.sqrt(x[2]**2+y[2]**2) < abs(L1-L2):
-            x[2] = xPrevious[2]
-            y[2] = yPrevious[2]
-            global text
-            text = "reach limit L={}".format(round(math.sqrt(x[2]**2+y[2]**2),2))
-        
-        if math.sqrt(x[3]**2+y[3]**2) > L1+L2+L3:
+        Len3 = math.sqrt(x[3]**2+y[3]**2)
+        LenSort = [L1,L2,L3]
+        LenSort.sort()
+        # x[3] and y[3] check
+        if Len3 > L1+L2+L3 or Len3 < LenSort[2]-LenSort[1]-LenSort[0]:
             x[3] = xPrevious[3]
             y[3] = yPrevious[3]
+            Len3 = math.sqrt(x[3]**2+y[3]**2)
+            text = "Len3={}".format(round(Len3,2))
+        else:
+            x[2] = x[3]-L3*math.cos((A1+A2+A3)*math.pi/180)
+            y[2] = y[3]-L3*math.sin((A1+A2+A3)*math.pi/180)
 
-        if x[2]==0:
-            x[2]=0.0001
+            Len2 = math.sqrt(x[2]**2+y[2]**2)
+            if Len2 > L1+L2 or Len2 < abs(L1-L2):
+                Len2_3 = math.sqrt((x[3]-x[1])**2+(y[3]-y[1])**2)
+                if Len2_3==0:
+                    Len3=0.0001
+                if (x[3]-x[1])==0:
+                    x[3]+=0.0001
+                A2 = -A1+(math.atan((y[3]-y[1])/(x[3]-x[1]))-math.acos((L2**2+Len2_3**2-L3**2)/(2*L2*Len2_3)))/math.pi*180
+                if (x[3]-x[1]) < 0:
+                    A2 += 180
+                A3 = (math.pi-math.acos((L2**2+L3**2-Len2_3**2)/(2*L2*L3)))/math.pi*180
+            
+            else:
+                if Len2==0:
+                    Len2=0.0001
+                if x[2]==0:
+                    x[2]=0.0001
+                A1 = (math.atan(y[2]/x[2])-math.acos((L1**2+Len2**2-L2**2)/(2*L1*Len2)))/math.pi*180
+                if x[2] < 0:
+                    A1 += 180
+                A2 = (math.pi-math.acos((L1**2+L2**2-Len2**2)/(2*L1*L2)))/math.pi*180
+                A3 = A1Previous-A1+A2Previous-A2+A3Previous
 
-        if x[3]==0:
-            x[3]=0.0001
-        
-        L = math.sqrt(x[2]**2+y[2]**2)
-        if L==0:
-            L=0.0001
-
-        A1 = (math.atan(y[2]/x[2])-math.acos((L1**2+L**2-L2**2)/(2*L1*L)))/math.pi*180
-        if x[2] < 0:
-            A1 += 180
-        A2 = (math.pi-math.acos((L1**2+L2**2-L**2)/(2*L1*L2)))/math.pi*180
         moved = False
 
-    return round(A1,2),round(A2,2)
+    return round(A1,2),round(A2,2),round(A3,2)
 
 
 
