@@ -4,7 +4,9 @@ from dash import Dash, html, dcc, Input, Output, State
 import dash_daq as daq
 import dash_bootstrap_components as dbc
 
-import os
+# video imports
+from flask import Flask, Response
+import cv2
 
 def fowardKinematics(L1=1,L2=1,A1=0,A2=0):
     p0 = [0,0]
@@ -16,6 +18,28 @@ def fowardKinematics(L1=1,L2=1,A1=0,A2=0):
         x.append(i[0])
         y.append(i[1])
     return x, y
+
+
+# video class
+class VideoCamera(object):
+    def __init__(self):
+        self.video = cv2.VideoCapture(0)
+
+    def __del__(self):
+        self.video.release()
+
+    def get_frame(self):
+        success, image = self.video.read()
+        ret, jpeg = cv2.imencode('.jpg', image)
+        return jpeg.tobytes()
+
+# video frame generator
+def gen(camera):
+    while True:
+        frame = camera.get_frame()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+
 
 # init value
 A1 = 45
@@ -34,8 +58,10 @@ text = ""
 # plt.plot(xp,yp,'ro')
 # plt.show()
 
+
 # init application
-app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP],title='FK/IK dev',update_title=None)
+server = Flask(__name__)
+app = Dash(__name__,server=server,external_stylesheets=[dbc.themes.BOOTSTRAP],title='IHM dev',update_title=None)
 
 # init figure of arms
 fig = go.Figure(
@@ -190,9 +216,23 @@ app.layout = html.Div([
             ),
             
         ],width='auto'),
+        
+        # 4th column
+        dbc.Col(
+            # video stream
+            html.Img(src="/video_feed"),
+            width='auto',
+            style={'paddingLeft':50,'paddingRight':10,'paddingTop':10,'paddingBottom':10},
+            ),
     ]),
 ],style={'paddingLeft':0,'paddingRight':0,'paddingTop':15,'paddingBottom':15},)
 
+
+# video stream
+@server.route('/video_feed')
+def video_feed():
+    return Response(gen(VideoCamera()),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 # graph angles and L update
 @app.callback(
@@ -286,7 +326,7 @@ def updateAngle(interval,angle,force,angle2,force2,forceLimit,L1,L2,A11,A22):
             x[2] = xPrevious[2]
             y[2] = yPrevious[2]
             global text
-            text = "reach limit L={}".format(round(math.sqrt(x[2]**2+y[2]**2),2))
+            text = "limit L={}".format(round(math.sqrt(x[2]**2+y[2]**2),2))
 
         # avoid singularity
         if x[2]==0:
@@ -313,4 +353,11 @@ def updateAngle(interval,angle,force,angle2,force2,forceLimit,L1,L2,A11,A22):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run(
+        # debug=True,
+        debug=False,
+        host="127.0.0.1",
+        port="8050",
+        dev_tools_ui=False,
+        dev_tools_silence_routes_logging=True,
+        )

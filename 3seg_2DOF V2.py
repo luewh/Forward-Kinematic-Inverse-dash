@@ -4,6 +4,10 @@ from dash import Dash, html, dcc, Input, Output, State
 import dash_daq as daq
 import dash_bootstrap_components as dbc
 
+# video imports
+from flask import Flask, Response
+import cv2
+
 def fowardKinematics(L1=1,L2=1,L3=1,A1=0,A2=0,A3=0):
     p0 = [0,0]
     p1 = [p0[0]+L1*math.cos(A1*math.pi/180),p0[1]+L1*math.sin(A1*math.pi/180)]
@@ -28,7 +32,7 @@ text = ""
 # xp, yp = [],[]
 # for A1 in range(-90,180,5):
 #     for A2 in range(0,181,5):
-#         x, y = fowardKinematics(1,1,1,A1,A2)
+#         x, y = fowardKinematics(19,26,26,A1,A2)
 #         xp.append(x[2])
 #         yp.append(y[2])
 
@@ -36,7 +40,28 @@ text = ""
 # plt.show()
 
 
-app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP],title='FK/IK dev',update_title=None)
+# video class
+class VideoCamera(object):
+    def __init__(self):
+        self.video = cv2.VideoCapture(0)
+
+    def __del__(self):
+        self.video.release()
+
+    def get_frame(self):
+        success, image = self.video.read()
+        ret, jpeg = cv2.imencode('.jpg', image)
+        return jpeg.tobytes()
+
+# video frame generator
+def gen(camera):
+    while True:
+        frame = camera.get_frame()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+
+server = Flask(__name__)
+app = Dash(__name__,server=server,external_stylesheets=[dbc.themes.BOOTSTRAP],title='FK/IK dev',update_title=None)
 
 fig = go.Figure(
     data=go.Scatter(x=[], y=[], line=dict(color="crimson")),
@@ -192,8 +217,20 @@ app.layout = html.Div([
                 style={'paddingLeft':60,'paddingRight':10,'paddingTop':15,'paddingBottom':15},
             ),
         ],width='auto'),
+        dbc.Col(
+            html.Img(src="/video_feed"),
+            width='auto',
+            style={'paddingLeft':50,'paddingRight':10,'paddingTop':10,'paddingBottom':10},
+            ),
     ]),
 ],style={'paddingLeft':0,'paddingRight':0,'paddingTop':15,'paddingBottom':15},)
+
+
+# video stream
+@server.route('/video_feed')
+def video_feed():
+    return Response(gen(VideoCamera()),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 # graph angles and length update
 @app.callback(
@@ -334,4 +371,6 @@ def updateAngle(interval,angle,force,angle2,force2,forceLimit,L1,L2,L3,A11,A22,A
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run(
+        debug=True,
+        )
