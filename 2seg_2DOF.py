@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 from dash import Dash, html, dcc, Input, Output, State
 import dash_daq as daq
 import dash_bootstrap_components as dbc
+import dash_auth
 
 # video imports
 from flask import Flask, Response
@@ -18,7 +19,6 @@ def fowardKinematics(L1=1,L2=1,A1=0,A2=0):
         x.append(i[0])
         y.append(i[1])
     return x, y
-
 
 # video class
 class VideoCamera(object):
@@ -58,10 +58,18 @@ text = ""
 # plt.plot(xp,yp,'ro')
 # plt.show()
 
+VALID_USERNAME_PASSWORD_PAIRS = {
+    'MKX7': 'SCAVENGER'
+}
 
 # init application
 server = Flask(__name__)
 app = Dash(__name__,server=server,external_stylesheets=[dbc.themes.BOOTSTRAP],title='IHM dev',update_title=None)
+
+auth = dash_auth.BasicAuth(
+    app,
+    VALID_USERNAME_PASSWORD_PAIRS,
+)
 
 # init figure of arms
 fig = go.Figure(
@@ -224,6 +232,7 @@ app.layout = html.Div([
             width='auto',
             style={'paddingLeft':50,'paddingRight':10,'paddingTop':10,'paddingBottom':10},
             ),
+    
     ]),
 ],style={'paddingLeft':0,'paddingRight':0,'paddingTop':15,'paddingBottom':15},)
 
@@ -351,13 +360,19 @@ def updateAngle(interval,angle,force,angle2,force2,forceLimit,L1,L2,A11,A22):
     return round(A1,2),round(A2,2)
 
 
-
+# dash deployment
+# gunicorn
+# https://docs.digitalocean.com/tutorials/app-deploy-flask-app/
+# dash login
+# https://www.youtube.com/watch?v=MxQtgLVEqbQ
 if __name__ == '__main__':
     app.run(
         # debug=True,
         debug=False,
         host="127.0.0.1",
-        port="8050",
-        dev_tools_ui=False,
+        # host="192.168.0.10",
+        port="8080",
+        # dev_tools_ui=False,
         dev_tools_silence_routes_logging=True,
         )
+    
