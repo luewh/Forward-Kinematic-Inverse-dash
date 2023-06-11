@@ -59,7 +59,8 @@ text = ""
 # plt.show()
 
 VALID_USERNAME_PASSWORD_PAIRS = {
-    'MKX7': 'SCAVENGER'
+    'MKX7': 'SCAVENGER',
+    'admin': ''
 }
 
 # init application
@@ -73,7 +74,8 @@ auth = dash_auth.BasicAuth(
 
 # init figure of arms
 fig = go.Figure(
-    data=go.Scatter(x=[], y=[], line=dict(color="crimson")),
+    data=go.Scatter(x=[], y=[],
+                    line=dict(color="crimson",width=2)),
     layout=dict(title=dict(text="x: y: "), width=350, height=350,margin=dict(l=25, r=25, t=25, b=25)),
 )
 
@@ -134,7 +136,7 @@ app.layout = html.Div([
                     id='graph',
                     figure=fig,
                     config={
-                        'scrollZoom': True,
+                        # 'scrollZoom': True,
                         'displaylogo': False,
                         'displayModeBar': False,
                         'staticPlot': True,
@@ -370,7 +372,9 @@ if __name__ == '__main__':
         # debug=True,
         debug=False,
         host="127.0.0.1",
-        # host="192.168.0.10",
+        # host="159.31.103.60",
+        # host="169.254.47.12",
+        # host="0.0.0.0",
         port="8080",
         # dev_tools_ui=False,
         dev_tools_silence_routes_logging=True,

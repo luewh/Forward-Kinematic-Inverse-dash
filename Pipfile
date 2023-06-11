@@ -23,6 +23,7 @@ plotly = "==5.14.1"
 tenacity = "==8.2.2"
 werkzeug = "==2.2.3"
 dash-auth = "*"
+matplotlib = "*"
 
 [dev-packages]
 
